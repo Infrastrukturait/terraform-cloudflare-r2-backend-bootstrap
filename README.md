@@ -157,7 +157,6 @@ module "backend" {
 
 <!-- END_TF_DOCS -->
 
-
 <!-- references -->
 
 [repo_link]: https://github.com/Infrastrukturait/terraform-cloudflare-r2-backend-bootstrap
