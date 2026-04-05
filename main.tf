@@ -182,6 +182,14 @@ locals {
     }
   } : {}
 
+  r2_token_name = (
+    var.access_key_name != null && trimspace(var.access_key_name) != ""
+    ? trimspace(var.access_key_name)
+    : "${local.bucket_name}-r2-backend"
+  )
+
+  r2_bucket_resource_key = "com.cloudflare.edge.r2.bucket.${var.account_id}_default_${local.bucket_name}"
+
   backup_worker_module = <<-EOT
     export default {
       async queue(batch, env) {
@@ -209,15 +217,15 @@ locals {
 
             const timestamp = new Date().toISOString()
               .replace(/:/g, "-")
-              .replace(/\\./g, "-");
+              .replace(/\./g, "-");
 
             const backupBasePrefix = env.BACKUP_PREFIX && env.BACKUP_PREFIX.trim() !== ""
               ? env.BACKUP_PREFIX
               : null;
 
             const backupKey = backupBasePrefix
-              ? `$${backupBasePrefix}/$${timestamp}-$${message.id}/$${sourceKey}`
-              : `$${timestamp}-$${message.id}/$${sourceKey}`;
+              ? `${backupBasePrefix}/${timestamp}-${message.id}/${sourceKey}`
+              : `${timestamp}-${message.id}/${sourceKey}`;
 
             await env.BACKUP_BUCKET.put(backupKey, sourceObject.body, {
               httpMetadata: sourceObject.httpMetadata,
@@ -310,6 +318,35 @@ module "backup_bucket" {
   managed_domain      = null
   custom_domains      = {}
   event_notifications = {}
+}
+
+resource "cloudflare_api_token" "r2_backend" {
+  count = var.create_access_key ? 1 : 0
+
+  name = local.r2_token_name
+
+  policies = [
+    {
+      effect = "allow"
+
+      permission_groups = [
+        {
+          id = "6a018a9f2fc74eb6b293b0c548f38b39"
+        },
+        {
+          id = "2efd5506f9c8494dacb1fa10a3e7d5b6"
+        }
+      ]
+
+      resources = {
+        (local.r2_bucket_resource_key) = "*"
+      }
+    }
+  ]
+
+  depends_on = [
+    module.primary_bucket
+  ]
 }
 
 resource "cloudflare_worker" "backup_consumer" {
