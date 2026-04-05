@@ -217,15 +217,15 @@ locals {
 
             const timestamp = new Date().toISOString()
               .replace(/:/g, "-")
-              .replace(/\./g, "-");
+              .replace(/\\./g, "-");
 
             const backupBasePrefix = env.BACKUP_PREFIX && env.BACKUP_PREFIX.trim() !== ""
               ? env.BACKUP_PREFIX
               : null;
 
             const backupKey = backupBasePrefix
-              ? `${backupBasePrefix}/${timestamp}-${message.id}/${sourceKey}`
-              : `${timestamp}-${message.id}/${sourceKey}`;
+              ? `$${backupBasePrefix}/$${timestamp}-$${message.id}/$${sourceKey}`
+              : `$${timestamp}-$${message.id}/$${sourceKey}`;
 
             await env.BACKUP_BUCKET.put(backupKey, sourceObject.body, {
               httpMetadata: sourceObject.httpMetadata,
@@ -338,9 +338,9 @@ resource "cloudflare_api_token" "r2_backend" {
         }
       ]
 
-      resources = {
+      resources = jsonencode({
         (local.r2_bucket_resource_key) = "*"
-      }
+      })
     }
   ]
 
