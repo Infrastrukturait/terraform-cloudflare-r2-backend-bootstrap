@@ -77,6 +77,10 @@ locals {
         id      = "abort-stale-multipart-uploads"
         enabled = true
 
+        conditions = {
+          prefix = ""
+        }
+
         abort_multipart_uploads_transition = {
           condition = {
             max_age = var.abort_multipart_after_days
@@ -92,6 +96,10 @@ locals {
       {
         id      = "abort-stale-multipart-uploads"
         enabled = true
+
+        conditions = {
+          prefix = ""
+        }
 
         abort_multipart_uploads_transition = {
           condition = {
@@ -374,12 +382,11 @@ resource "cloudflare_queue_consumer" "backup_worker" {
   dead_letter_queue = var.enable_backup_dead_letter_queue ? cloudflare_queue.backup_dead_letter[0].queue_name : null
 
   settings = {
-    batch_size            = var.backup_queue_batch_size
-    max_concurrency       = var.backup_queue_max_concurrency
-    max_retries           = var.backup_queue_max_retries
-    max_wait_time_ms      = var.backup_queue_max_wait_time_ms
-    retry_delay           = var.backup_queue_retry_delay_seconds
-    visibility_timeout_ms = var.backup_queue_visibility_timeout_ms
+    batch_size       = var.backup_queue_batch_size
+    max_concurrency  = var.backup_queue_max_concurrency
+    max_retries      = var.backup_queue_max_retries
+    max_wait_time_ms = var.backup_queue_max_wait_time_ms
+    retry_delay      = var.backup_queue_retry_delay_seconds
   }
 
   depends_on = [
