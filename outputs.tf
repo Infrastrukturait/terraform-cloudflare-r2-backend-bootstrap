@@ -113,3 +113,72 @@ output "backup_summary" {
     event_actions     = ["PutObject", "CopyObject", "CompleteMultipartUpload"]
   } : null
 }
+
+output "r2_access_key_id" {
+  description = "Generated R2 S3 Access Key ID for the primary backend bucket, if enabled."
+  value       = var.create_access_key ? cloudflare_api_token.r2_backend[0].id : null
+  sensitive   = true
+}
+
+output "r2_secret_access_key" {
+  description = "Generated R2 S3 Secret Access Key for the primary backend bucket, if enabled."
+  value       = var.create_access_key ? sha256(cloudflare_api_token.r2_backend[0].value) : null
+  sensitive   = true
+}
+
+output "backend_credentials" {
+  description = "Generated R2 backend credentials, if enabled."
+  value = var.create_access_key ? {
+    access_key_id     = cloudflare_api_token.r2_backend[0].id
+    secret_access_key = sha256(cloudflare_api_token.r2_backend[0].value)
+  } : null
+  sensitive = true
+}
+
+output "backend_config_with_credentials" {
+  description = "Suggested backend configuration values for Terraform including generated R2 credentials, if enabled."
+  value = merge(
+    {
+      bucket                      = module.primary_bucket.bucket.name
+      key                         = var.state_key
+      region                      = "auto"
+      use_path_style              = true
+      use_lockfile                = true
+      skip_credentials_validation = true
+      skip_metadata_api_check     = true
+      skip_region_validation      = true
+      skip_requesting_account_id  = true
+      skip_s3_checksum            = true
+      endpoints = {
+        s3 = local.backend_endpoint
+      }
+    },
+    var.create_access_key ? {
+      access_key = cloudflare_api_token.r2_backend[0].id
+      secret_key = sha256(cloudflare_api_token.r2_backend[0].value)
+    } : {}
+  )
+  sensitive = true
+}
+
+output "backend_config_hcl_with_credentials" {
+  description = "Suggested backend configuration rendered as HCL text including generated R2 credentials, if enabled."
+  value = var.create_access_key ? join("\n", [
+    "bucket                      = \"${module.primary_bucket.bucket.name}\"",
+    "key                         = \"${var.state_key}\"",
+    "region                      = \"auto\"",
+    "use_path_style              = true",
+    "use_lockfile                = true",
+    "skip_credentials_validation = true",
+    "skip_metadata_api_check     = true",
+    "skip_region_validation      = true",
+    "skip_requesting_account_id  = true",
+    "skip_s3_checksum            = true",
+    "access_key                  = \"${cloudflare_api_token.r2_backend[0].id}\"",
+    "secret_key                  = \"${sha256(cloudflare_api_token.r2_backend[0].value)}\"",
+    "endpoints = {",
+    "  s3 = \"${local.backend_endpoint}\"",
+    "}",
+  ]) : null
+  sensitive = true
+}

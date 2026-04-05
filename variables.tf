@@ -56,6 +56,18 @@ variable "bucket_name" {
   }
 }
 
+variable "create_access_key" {
+  description = "Whether to create bucket-scoped R2 S3 credentials for the primary backend bucket."
+  type        = bool
+  default     = false
+}
+
+variable "access_key_name" {
+  description = "Optional explicit name for the generated R2 API token."
+  type        = string
+  default     = null
+}
+
 variable "random_suffix_length" {
   description = "Length of the random suffix appended to generated bucket names."
   type        = number
@@ -345,16 +357,5 @@ variable "backup_queue_retry_delay_seconds" {
   validation {
     condition     = var.backup_queue_retry_delay_seconds >= 0
     error_message = "backup_queue_retry_delay_seconds must be greater than or equal to 0."
-  }
-}
-
-variable "backup_queue_visibility_timeout_ms" {
-  description = "Visibility timeout in milliseconds for leased queue messages."
-  type        = number
-  default     = 300000
-
-  validation {
-    condition     = var.backup_queue_visibility_timeout_ms >= 1000
-    error_message = "backup_queue_visibility_timeout_ms must be greater than or equal to 1000."
   }
 }
