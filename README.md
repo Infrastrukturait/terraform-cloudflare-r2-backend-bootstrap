@@ -58,6 +58,7 @@ See [LICENSE](LICENSE) for full details.
 
 | Name | Type |
 |------|------|
+| [cloudflare_api_token.r2_backend](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/api_token) | resource |
 | [cloudflare_queue.backup](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/queue) | resource |
 | [cloudflare_queue.backup_dead_letter](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/queue) | resource |
 | [cloudflare_queue_consumer.backup_worker](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/queue_consumer) | resource |
@@ -72,6 +73,7 @@ See [LICENSE](LICENSE) for full details.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_abort_multipart_after_days"></a> [abort\_multipart\_after\_days](#input\_abort\_multipart\_after\_days) | Number of days after which incomplete multipart uploads are aborted on the primary bucket. | `number` | `7` | no |
+| <a name="input_access_key_name"></a> [access\_key\_name](#input\_access\_key\_name) | Optional explicit name for the generated R2 API token. | `string` | `null` | no |
 | <a name="input_account_alias"></a> [account\_alias](#input\_account\_alias) | Logical account alias used as part of the generated bucket name. | `string` | n/a | yes |
 | <a name="input_account_id"></a> [account\_id](#input\_account\_id) | Cloudflare account ID used to create the R2 buckets, queue, worker and backend endpoint. | `string` | n/a | yes |
 | <a name="input_backup_abort_multipart_after_days"></a> [backup\_abort\_multipart\_after\_days](#input\_backup\_abort\_multipart\_after\_days) | Number of days after which incomplete multipart uploads are aborted on the backup bucket. | `number` | `7` | no |
@@ -87,7 +89,6 @@ See [LICENSE](LICENSE) for full details.
 | <a name="input_backup_queue_max_wait_time_ms"></a> [backup\_queue\_max\_wait\_time\_ms](#input\_backup\_queue\_max\_wait\_time\_ms) | Maximum time in milliseconds to wait for a queue batch to fill. | `number` | `5000` | no |
 | <a name="input_backup_queue_name"></a> [backup\_queue\_name](#input\_backup\_queue\_name) | Explicit backup queue name override. | `string` | `null` | no |
 | <a name="input_backup_queue_retry_delay_seconds"></a> [backup\_queue\_retry\_delay\_seconds](#input\_backup\_queue\_retry\_delay\_seconds) | Retry delay in seconds before a failed queue message becomes available again. | `number` | `30` | no |
-| <a name="input_backup_queue_visibility_timeout_ms"></a> [backup\_queue\_visibility\_timeout\_ms](#input\_backup\_queue\_visibility\_timeout\_ms) | Visibility timeout in milliseconds for leased queue messages. | `number` | `300000` | no |
 | <a name="input_backup_retention_days"></a> [backup\_retention\_days](#input\_backup\_retention\_days) | Delete backup objects older than this many days. Set to null to disable automatic deletion. | `number` | `90` | no |
 | <a name="input_backup_source_prefix"></a> [backup\_source\_prefix](#input\_backup\_source\_prefix) | Optional prefix filter for primary bucket event notifications. | `string` | `null` | no |
 | <a name="input_backup_source_suffix"></a> [backup\_source\_suffix](#input\_backup\_source\_suffix) | Optional suffix filter for primary bucket event notifications. | `string` | `null` | no |
@@ -96,6 +97,7 @@ See [LICENSE](LICENSE) for full details.
 | <a name="input_backup_worker_name"></a> [backup\_worker\_name](#input\_backup\_worker\_name) | Explicit backup Worker name override. | `string` | `null` | no |
 | <a name="input_bucket_name"></a> [bucket\_name](#input\_bucket\_name) | Explicit primary bucket name override. If null, the module generates a safe random name. | `string` | `null` | no |
 | <a name="input_bucket_purpose"></a> [bucket\_purpose](#input\_bucket\_purpose) | Logical bucket purpose used as part of the generated bucket name. | `string` | `"tfstate"` | no |
+| <a name="input_create_access_key"></a> [create\_access\_key](#input\_create\_access\_key) | Whether to create bucket-scoped R2 S3 credentials for the primary backend bucket. | `bool` | `false` | no |
 | <a name="input_enable_backup_bucket_lifecycle"></a> [enable\_backup\_bucket\_lifecycle](#input\_enable\_backup\_bucket\_lifecycle) | Enable default lifecycle rules on the backup bucket. | `bool` | `true` | no |
 | <a name="input_enable_backup_dead_letter_queue"></a> [enable\_backup\_dead\_letter\_queue](#input\_enable\_backup\_dead\_letter\_queue) | Create a dead letter queue for backup processing failures. | `bool` | `true` | no |
 | <a name="input_enable_backup_lock"></a> [enable\_backup\_lock](#input\_enable\_backup\_lock) | Enable a minimum retention lock on the backup bucket. | `bool` | `true` | no |
@@ -115,6 +117,9 @@ See [LICENSE](LICENSE) for full details.
 |------|-------------|
 | <a name="output_backend_config"></a> [backend\_config](#output\_backend\_config) | Suggested backend configuration values for Terraform. |
 | <a name="output_backend_config_hcl"></a> [backend\_config\_hcl](#output\_backend\_config\_hcl) | Suggested backend configuration rendered as HCL text. |
+| <a name="output_backend_config_hcl_with_credentials"></a> [backend\_config\_hcl\_with\_credentials](#output\_backend\_config\_hcl\_with\_credentials) | Suggested backend configuration rendered as HCL text including generated R2 credentials, if enabled. |
+| <a name="output_backend_config_with_credentials"></a> [backend\_config\_with\_credentials](#output\_backend\_config\_with\_credentials) | Suggested backend configuration values for Terraform including generated R2 credentials, if enabled. |
+| <a name="output_backend_credentials"></a> [backend\_credentials](#output\_backend\_credentials) | Generated R2 backend credentials, if enabled. |
 | <a name="output_backend_endpoint"></a> [backend\_endpoint](#output\_backend\_endpoint) | S3-compatible R2 endpoint for the Cloudflare account. |
 | <a name="output_backend_type"></a> [backend\_type](#output\_backend\_type) | Terraform backend type to use for Cloudflare R2. |
 | <a name="output_backup_bucket"></a> [backup\_bucket](#output\_backup\_bucket) | Created backup R2 bucket details returned by the underlying module, if enabled. |
@@ -127,6 +132,8 @@ See [LICENSE](LICENSE) for full details.
 | <a name="output_backup_worker_name"></a> [backup\_worker\_name](#output\_backup\_worker\_name) | Name of the backup Worker, if enabled. |
 | <a name="output_bucket"></a> [bucket](#output\_bucket) | Created primary R2 bucket details returned by the underlying module. |
 | <a name="output_bucket_name"></a> [bucket\_name](#output\_bucket\_name) | Name of the created primary R2 backend bucket. |
+| <a name="output_r2_access_key_id"></a> [r2\_access\_key\_id](#output\_r2\_access\_key\_id) | Generated R2 S3 Access Key ID for the primary backend bucket, if enabled. |
+| <a name="output_r2_secret_access_key"></a> [r2\_secret\_access\_key](#output\_r2\_secret\_access\_key) | Generated R2 S3 Secret Access Key for the primary backend bucket, if enabled. |
 
 ### Examples
 
