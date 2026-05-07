@@ -498,7 +498,7 @@ resource "cloudflare_queue_consumer" "backup_worker" {
   script_name = cloudflare_worker.backup_consumer[0].name
   type        = "worker"
 
-  dead_letter_queue = var.enable_backup_dead_letter_queue ? cloudflare_queue.backup_dead_letter[0].queue_name : null
+  dead_letter_queue = local.backup_uses_event_trigger && var.enable_backup_dead_letter_queue ? cloudflare_queue.backup_dead_letter[0].queue_name : null
 
   settings = {
     batch_size       = var.backup_queue_batch_size
