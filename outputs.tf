@@ -14,13 +14,17 @@ output "backup_enabled" {
 }
 
 output "backup_bucket_name" {
-  description = "Name of the created backup R2 bucket, if enabled."
-  value       = try(module.backup_bucket[0].bucket.name, null)
+  description = "Name of the backup target bucket, if enabled."
+  value = var.backup_enabled ? (
+    local.backup_uses_separate_bucket ? module.backup_bucket[0].bucket.name : module.primary_bucket.bucket.name
+  ) : null
 }
 
 output "backup_bucket" {
-  description = "Created backup R2 bucket details returned by the underlying module, if enabled."
-  value       = try(module.backup_bucket[0].bucket, null)
+  description = "Backup target bucket details, if enabled."
+  value = var.backup_enabled ? (
+    local.backup_uses_separate_bucket ? module.backup_bucket[0].bucket : module.primary_bucket.bucket
+  ) : null
 }
 
 output "backup_queue_name" {
@@ -41,11 +45,15 @@ output "backup_worker_name" {
 output "backup_policy" {
   description = "Backup retention and lock settings."
   value = var.backup_enabled ? {
-    backup_prefix  = var.backup_prefix
-    retention_days = var.backup_retention_days
-    min_lock_days  = var.enable_backup_lock ? var.backup_min_lock_days : null
-    source_prefix  = var.backup_source_prefix
-    source_suffix  = var.backup_source_suffix
+    backup_prefix               = var.backup_prefix
+    retention_days              = var.backup_retention_days
+    min_lock_days               = var.enable_backup_lock ? var.backup_min_lock_days : null
+    source_prefix               = var.backup_source_prefix
+    source_suffix               = var.backup_source_suffix
+    backup_trigger              = var.backup_trigger
+    backup_cron                 = local.backup_uses_cron_trigger ? var.backup_cron : null
+    backup_state_key            = local.backup_uses_cron_trigger ? var.backup_state_key : null
+    backup_uses_separate_bucket = var.backup_uses_separate_bucket
   } : null
 }
 
@@ -100,17 +108,21 @@ output "backend_config_hcl" {
 output "backup_summary" {
   description = "Summary of the backup stack."
   value = var.backup_enabled ? {
-    primary_bucket    = module.primary_bucket.bucket.name
-    backup_bucket     = module.backup_bucket[0].bucket.name
-    queue             = cloudflare_queue.backup[0].queue_name
-    dead_letter_queue = var.enable_backup_dead_letter_queue ? cloudflare_queue.backup_dead_letter[0].queue_name : null
-    worker            = cloudflare_worker.backup_consumer[0].name
-    backup_prefix     = var.backup_prefix
-    retention_days    = var.backup_retention_days
-    min_lock_days     = var.enable_backup_lock ? var.backup_min_lock_days : null
-    source_prefix     = var.backup_source_prefix
-    source_suffix     = var.backup_source_suffix
-    event_actions     = ["PutObject", "CopyObject", "CompleteMultipartUpload"]
+    primary_bucket              = module.primary_bucket.bucket.name
+    backup_bucket               = local.backup_uses_separate_bucket ? module.backup_bucket[0].bucket.name : module.primary_bucket.bucket.name
+    backup_uses_separate_bucket = var.backup_uses_separate_bucket
+    backup_trigger              = var.backup_trigger
+    backup_cron                 = local.backup_uses_cron_trigger ? var.backup_cron : null
+    backup_state_key            = local.backup_uses_cron_trigger ? var.backup_state_key : null
+    queue                       = local.backup_uses_event_trigger ? cloudflare_queue.backup[0].queue_name : null
+    dead_letter_queue           = local.backup_uses_event_trigger && var.enable_backup_dead_letter_queue ? cloudflare_queue.backup_dead_letter[0].queue_name : null
+    worker                      = cloudflare_worker.backup_consumer[0].name
+    backup_prefix               = var.backup_prefix
+    retention_days              = var.backup_retention_days
+    min_lock_days               = var.enable_backup_lock ? var.backup_min_lock_days : null
+    source_prefix               = var.backup_source_prefix
+    source_suffix               = var.backup_source_suffix
+    event_actions               = local.backup_uses_event_trigger ? ["PutObject", "CopyObject", "CompleteMultipartUpload"] : null
   } : null
 }
 
