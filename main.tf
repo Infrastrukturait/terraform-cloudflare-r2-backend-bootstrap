@@ -232,88 +232,105 @@ locals {
   r2_bucket_resource_key = "com.cloudflare.edge.r2.bucket.${var.account_id}_default_${local.bucket_name}"
 
   backup_worker_module = <<-EOT
-    export default {
-      async queue(batch, env) {
-        for (const message of batch.messages) {
-          try {
-            const payload = typeof message.body === "string" ? JSON.parse(message.body) : message.body;
+  export default {
+    async queue(batch, env) {
+      for (const message of batch.messages) {
+        try {
+          const payload = typeof message.body === "string" ? JSON.parse(message.body) : message.body;
 
-            if (!payload || !payload.object || !payload.object.key) {
-              console.warn("Invalid queue payload", payload);
-              message.ack();
-              continue;
-            }
-
-            await backupObject(env, payload.object.key, {
-              runId: message.id,
-              sourceBucket: payload.bucket || "",
-              sourceAction: payload.action || "",
-              sourceEventTime: payload.eventTime || "",
-              sourceEtag: payload.object?.eTag || ""
-            });
-
+          if (!payload || !payload.object || !payload.object.key) {
+            console.warn("Invalid queue payload", payload);
             message.ack();
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-
-            console.error("Queue message processing failed", {
-              messageId: message.id,
-              error: errorMessage
-            });
-
-            message.retry();
+            continue;
           }
-        }
-      },
 
-      async scheduled(controller, env, ctx) {
-        ctx.waitUntil((async () => {
-          const scheduledTime = controller && controller.scheduledTime
-            ? new Date(controller.scheduledTime).toISOString()
-            : new Date().toISOString();
+          const sourceKey = payload.object.key;
+          const backupBasePrefix = getBackupPrefix(env);
 
-          await backupObject(env, env.BACKUP_STATE_KEY || "terraform.tfstate", {
-            runId: "scheduled-" + scheduledTime.replace(/:/g, "-").replace(/\\./g, "-"),
-            sourceBucket: "",
-            sourceAction: "scheduled",
-            sourceEventTime: scheduledTime,
-            sourceEtag: ""
+          if (isBackupObject(sourceKey, backupBasePrefix)) {
+            console.warn("Skipping backup object to prevent recursive backup", { sourceKey });
+            message.ack();
+            continue;
+          }
+
+          await backupObject(env, sourceKey, {
+            runId: message.id,
+            sourceBucket: payload.bucket || "",
+            sourceAction: payload.action || "",
+            sourceEventTime: payload.eventTime || "",
+            sourceEtag: payload.object?.eTag || ""
           });
-        })());
-      }
-    };
 
-    async function backupObject(env, sourceKey, meta) {
-      const sourceObject = await env.SOURCE_BUCKET.get(sourceKey);
+          message.ack();
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (!sourceObject) {
-        throw new Error("Source object not found: " + sourceKey);
-      }
+          console.error("Queue message processing failed", {
+            messageId: message.id,
+            error: errorMessage
+          });
 
-      const timestamp = new Date().toISOString()
-        .replace(/:/g, "-")
-        .replace(/\\./g, "-");
-
-      const backupBasePrefix = env.BACKUP_PREFIX && env.BACKUP_PREFIX.trim() !== ""
-        ? env.BACKUP_PREFIX.replace(/^\\/+|\\/+$/g, "")
-        : "snapshots";
-
-      const runId = meta.runId || "manual";
-      const backupKey = backupBasePrefix + "/" + timestamp + "-" + runId + "/" + sourceKey;
-
-      await env.BACKUP_BUCKET.put(backupKey, sourceObject.body, {
-        httpMetadata: sourceObject.httpMetadata,
-        customMetadata: {
-          ...(sourceObject.customMetadata || {}),
-          source_bucket: meta.sourceBucket || "",
-          source_key: sourceKey,
-          source_action: meta.sourceAction || "",
-          source_event_time: meta.sourceEventTime || "",
-          source_etag: meta.sourceEtag || ""
+          message.retry();
         }
-      });
+      }
+    },
+
+    async scheduled(controller, env, ctx) {
+      ctx.waitUntil((async () => {
+        const scheduledTime = controller && controller.scheduledTime
+          ? new Date(controller.scheduledTime).toISOString()
+          : new Date().toISOString();
+
+        await backupObject(env, env.BACKUP_STATE_KEY || "terraform.tfstate", {
+          runId: "scheduled-" + scheduledTime.replace(/:/g, "-").replace(/\\./g, "-"),
+          sourceBucket: "",
+          sourceAction: "scheduled",
+          sourceEventTime: scheduledTime,
+          sourceEtag: ""
+        });
+      })());
     }
-  EOT
+  };
+
+  function getBackupPrefix(env) {
+    return env.BACKUP_PREFIX && env.BACKUP_PREFIX.trim() !== ""
+      ? env.BACKUP_PREFIX.replace(/^\\/+|\\/+$/g, "")
+      : "snapshots";
+  }
+
+  function isBackupObject(sourceKey, backupBasePrefix) {
+    return sourceKey === backupBasePrefix || sourceKey.startsWith(backupBasePrefix + "/");
+  }
+
+  async function backupObject(env, sourceKey, meta) {
+    const sourceObject = await env.SOURCE_BUCKET.get(sourceKey);
+
+    if (!sourceObject) {
+      throw new Error("Source object not found: " + sourceKey);
+    }
+
+    const timestamp = new Date().toISOString()
+      .replace(/:/g, "-")
+      .replace(/\\./g, "-");
+
+    const backupBasePrefix = getBackupPrefix(env);
+
+    const runId = meta.runId || "manual";
+    const backupKey = backupBasePrefix + "/" + timestamp + "-" + runId + "/" + sourceKey;
+
+    await env.BACKUP_BUCKET.put(backupKey, sourceObject.body, {
+      httpMetadata: sourceObject.httpMetadata,
+      customMetadata: {
+        ...(sourceObject.customMetadata || {}),
+        source_bucket: meta.sourceBucket || "",
+        source_key: sourceKey,
+        source_action: meta.sourceAction || "",
+        source_event_time: meta.sourceEventTime || "",
+        source_etag: meta.sourceEtag || ""
+      }
+    });
+  }
+EOT
 }
 
 resource "random_string" "bucket_suffix" {
