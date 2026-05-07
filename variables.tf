@@ -135,13 +135,52 @@ variable "abort_multipart_after_days" {
 }
 
 variable "backup_enabled" {
-  description = "When true, create the backup stack: backup bucket, queue, consumer Worker, event notification and optional DLQ."
+  description = "When true, create backup automation for Terraform state snapshots."
   type        = bool
   default     = false
 }
 
+variable "backup_uses_separate_bucket" {
+  description = "Store snapshots in a separate backup bucket instead of the primary bucket."
+  type        = bool
+  default     = false
+}
+
+variable "backup_trigger" {
+  description = "Backup trigger mode."
+  type        = string
+  default     = "event"
+
+  validation {
+    condition     = contains(["event", "scheduled"], var.backup_trigger)
+    error_message = "backup_trigger must be event or scheduled."
+  }
+}
+
+variable "backup_cron" {
+  description = "Cron expression for scheduled backup mode. Cloudflare cron runs in UTC."
+  type        = string
+  default     = "0 */6 * * *"
+
+  validation {
+    condition     = trimspace(var.backup_cron) != ""
+    error_message = "backup_cron must not be empty."
+  }
+}
+
+variable "backup_state_key" {
+  description = "Object key to snapshot in scheduled backup mode."
+  type        = string
+  default     = "terraform.tfstate"
+
+  validation {
+    condition     = trimspace(var.backup_state_key) != ""
+    error_message = "backup_state_key must not be empty."
+  }
+}
+
 variable "backup_bucket_name" {
-  description = "Explicit backup bucket name override. If null and backup_enabled is true, the module generates a safe random backup bucket name."
+  description = "Explicit backup bucket name override. Used only when backup_uses_separate_bucket is true. If null, the module generates a safe random backup bucket name."
   type        = string
   default     = null
 
@@ -176,7 +215,7 @@ variable "backup_storage_class" {
 }
 
 variable "enable_backup_bucket_lifecycle" {
-  description = "Enable default lifecycle rules on the backup bucket."
+  description = "Enable default lifecycle rules on backup snapshots."
   type        = bool
   default     = true
 }
@@ -204,7 +243,7 @@ variable "backup_retention_days" {
 }
 
 variable "enable_backup_lock" {
-  description = "Enable a minimum retention lock on the backup bucket."
+  description = "Enable a minimum retention lock on backup snapshots."
   type        = bool
   default     = true
 }
@@ -221,7 +260,7 @@ variable "backup_min_lock_days" {
 }
 
 variable "backup_prefix" {
-  description = "Prefix inside the backup bucket where snapshots are stored."
+  description = "Prefix where snapshots are stored."
   type        = string
   default     = "snapshots"
 

@@ -12,16 +12,15 @@ module "backend" {
   storage_class = "Standard"
 
   backup_enabled              = true
-  backup_uses_separate_bucket = true
+  backup_uses_separate_bucket = false
   backup_trigger              = "event"
-
-  backup_storage_class = "Standard"
 
   backup_prefix        = "snapshots"
   backup_source_suffix = ".tfstate"
 
-  backup_retention_days           = 90
-  enable_backup_lock              = true
-  backup_min_lock_days            = 14
+  backup_retention_days = 90
+  enable_backup_lock    = true
+  backup_min_lock_days  = 14
+
   enable_backup_dead_letter_queue = true
 }
