@@ -293,9 +293,19 @@ locals {
   };
 
   function getBackupPrefix(env) {
-    return env.BACKUP_PREFIX && env.BACKUP_PREFIX.trim() !== ""
-      ? env.BACKUP_PREFIX.replace(/^\\/+|\\/+$/g, "")
+    let prefix = env.BACKUP_PREFIX && env.BACKUP_PREFIX.trim() !== ""
+      ? env.BACKUP_PREFIX.trim()
       : "snapshots";
+
+    while (prefix.startsWith("/")) {
+      prefix = prefix.slice(1);
+    }
+
+    while (prefix.endsWith("/")) {
+      prefix = prefix.slice(0, -1);
+    }
+
+    return prefix || "snapshots";
   }
 
   function isBackupObject(sourceKey, backupBasePrefix) {
@@ -519,7 +529,9 @@ resource "cloudflare_workers_cron_trigger" "backup" {
   script_name = cloudflare_worker.backup_consumer[0].name
 
   schedules = [
-    var.backup_cron
+    {
+      cron = var.backup_cron
+    }
   ]
 
   depends_on = [
