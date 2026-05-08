@@ -28,6 +28,7 @@
 | [cloudflare_queue_consumer.backup_worker](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/queue_consumer) | resource |
 | [cloudflare_worker.backup_consumer](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/worker) | resource |
 | [cloudflare_worker_version.backup_consumer](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/worker_version) | resource |
+| [cloudflare_workers_cron_trigger.backup](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/workers_cron_trigger) | resource |
 | [cloudflare_workers_deployment.backup_consumer](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/workers_deployment) | resource |
 | [random_string.backup_bucket_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
 | [random_string.bucket_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
@@ -41,12 +42,13 @@
 | <a name="input_account_alias"></a> [account\_alias](#input\_account\_alias) | Logical account alias used as part of the generated bucket name. | `string` | n/a | yes |
 | <a name="input_account_id"></a> [account\_id](#input\_account\_id) | Cloudflare account ID used to create the R2 buckets, queue, worker and backend endpoint. | `string` | n/a | yes |
 | <a name="input_backup_abort_multipart_after_days"></a> [backup\_abort\_multipart\_after\_days](#input\_backup\_abort\_multipart\_after\_days) | Number of days after which incomplete multipart uploads are aborted on the backup bucket. | `number` | `7` | no |
-| <a name="input_backup_bucket_name"></a> [backup\_bucket\_name](#input\_backup\_bucket\_name) | Explicit backup bucket name override. If null and backup\_enabled is true, the module generates a safe random backup bucket name. | `string` | `null` | no |
+| <a name="input_backup_bucket_name"></a> [backup\_bucket\_name](#input\_backup\_bucket\_name) | Explicit backup bucket name override. Used only when backup\_uses\_separate\_bucket is true. If null, the module generates a safe random backup bucket name. | `string` | `null` | no |
+| <a name="input_backup_cron"></a> [backup\_cron](#input\_backup\_cron) | Cron expression for scheduled backup mode. Cloudflare cron runs in UTC. | `string` | `"0 */6 * * *"` | no |
 | <a name="input_backup_dead_letter_queue_name"></a> [backup\_dead\_letter\_queue\_name](#input\_backup\_dead\_letter\_queue\_name) | Explicit dead letter queue name override. | `string` | `null` | no |
-| <a name="input_backup_enabled"></a> [backup\_enabled](#input\_backup\_enabled) | When true, create the backup stack: backup bucket, queue, consumer Worker, event notification and optional DLQ. | `bool` | `false` | no |
+| <a name="input_backup_enabled"></a> [backup\_enabled](#input\_backup\_enabled) | When true, create backup automation for Terraform state snapshots. | `bool` | `false` | no |
 | <a name="input_backup_location"></a> [backup\_location](#input\_backup\_location) | Optional Cloudflare R2 bucket location for the backup bucket. If null, the primary bucket location is used. | `string` | `null` | no |
 | <a name="input_backup_min_lock_days"></a> [backup\_min\_lock\_days](#input\_backup\_min\_lock\_days) | Minimum number of days backup objects must be retained before they can be removed or overwritten. | `number` | `14` | no |
-| <a name="input_backup_prefix"></a> [backup\_prefix](#input\_backup\_prefix) | Prefix inside the backup bucket where snapshots are stored. | `string` | `"snapshots"` | no |
+| <a name="input_backup_prefix"></a> [backup\_prefix](#input\_backup\_prefix) | Prefix where snapshots are stored. | `string` | `"snapshots"` | no |
 | <a name="input_backup_queue_batch_size"></a> [backup\_queue\_batch\_size](#input\_backup\_queue\_batch\_size) | Maximum number of messages delivered per batch to the backup Worker. | `number` | `10` | no |
 | <a name="input_backup_queue_max_concurrency"></a> [backup\_queue\_max\_concurrency](#input\_backup\_queue\_max\_concurrency) | Maximum number of concurrent backup Worker consumers. | `number` | `10` | no |
 | <a name="input_backup_queue_max_retries"></a> [backup\_queue\_max\_retries](#input\_backup\_queue\_max\_retries) | Maximum number of retries for failed queue messages. | `number` | `5` | no |
@@ -56,15 +58,18 @@
 | <a name="input_backup_retention_days"></a> [backup\_retention\_days](#input\_backup\_retention\_days) | Delete backup objects older than this many days. Set to null to disable automatic deletion. | `number` | `90` | no |
 | <a name="input_backup_source_prefix"></a> [backup\_source\_prefix](#input\_backup\_source\_prefix) | Optional prefix filter for primary bucket event notifications. | `string` | `null` | no |
 | <a name="input_backup_source_suffix"></a> [backup\_source\_suffix](#input\_backup\_source\_suffix) | Optional suffix filter for primary bucket event notifications. | `string` | `null` | no |
+| <a name="input_backup_state_key"></a> [backup\_state\_key](#input\_backup\_state\_key) | Object key to snapshot in scheduled backup mode. | `string` | `"terraform.tfstate"` | no |
 | <a name="input_backup_storage_class"></a> [backup\_storage\_class](#input\_backup\_storage\_class) | Optional storage class for the backup bucket. If null, the primary bucket storage class is used. | `string` | `null` | no |
+| <a name="input_backup_trigger"></a> [backup\_trigger](#input\_backup\_trigger) | Backup trigger mode. | `string` | `"event"` | no |
+| <a name="input_backup_uses_separate_bucket"></a> [backup\_uses\_separate\_bucket](#input\_backup\_uses\_separate\_bucket) | Store snapshots in a separate backup bucket instead of the primary bucket. | `bool` | `false` | no |
 | <a name="input_backup_worker_compatibility_date"></a> [backup\_worker\_compatibility\_date](#input\_backup\_worker\_compatibility\_date) | Compatibility date for the backup Worker. | `string` | `"2026-04-02"` | no |
 | <a name="input_backup_worker_name"></a> [backup\_worker\_name](#input\_backup\_worker\_name) | Explicit backup Worker name override. | `string` | `null` | no |
 | <a name="input_bucket_name"></a> [bucket\_name](#input\_bucket\_name) | Explicit primary bucket name override. If null, the module generates a safe random name. | `string` | `null` | no |
 | <a name="input_bucket_purpose"></a> [bucket\_purpose](#input\_bucket\_purpose) | Logical bucket purpose used as part of the generated bucket name. | `string` | `"tfstate"` | no |
 | <a name="input_create_access_key"></a> [create\_access\_key](#input\_create\_access\_key) | Whether to create bucket-scoped R2 S3 credentials for the primary backend bucket. | `bool` | `false` | no |
-| <a name="input_enable_backup_bucket_lifecycle"></a> [enable\_backup\_bucket\_lifecycle](#input\_enable\_backup\_bucket\_lifecycle) | Enable default lifecycle rules on the backup bucket. | `bool` | `true` | no |
+| <a name="input_enable_backup_bucket_lifecycle"></a> [enable\_backup\_bucket\_lifecycle](#input\_enable\_backup\_bucket\_lifecycle) | Enable default lifecycle rules on backup snapshots. | `bool` | `true` | no |
 | <a name="input_enable_backup_dead_letter_queue"></a> [enable\_backup\_dead\_letter\_queue](#input\_enable\_backup\_dead\_letter\_queue) | Create a dead letter queue for backup processing failures. | `bool` | `true` | no |
-| <a name="input_enable_backup_lock"></a> [enable\_backup\_lock](#input\_enable\_backup\_lock) | Enable a minimum retention lock on the backup bucket. | `bool` | `true` | no |
+| <a name="input_enable_backup_lock"></a> [enable\_backup\_lock](#input\_enable\_backup\_lock) | Enable a minimum retention lock on backup snapshots. | `bool` | `true` | no |
 | <a name="input_enable_bucket_lifecycle"></a> [enable\_bucket\_lifecycle](#input\_enable\_bucket\_lifecycle) | Enable default lifecycle rules on the primary bucket. | `bool` | `true` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | Optional environment name used as part of the generated bucket name. | `string` | `null` | no |
 | <a name="input_location"></a> [location](#input\_location) | Optional Cloudflare R2 bucket location for the primary bucket. | `string` | `null` | no |
@@ -86,8 +91,8 @@
 | <a name="output_backend_credentials"></a> [backend\_credentials](#output\_backend\_credentials) | Generated R2 backend credentials, if enabled. |
 | <a name="output_backend_endpoint"></a> [backend\_endpoint](#output\_backend\_endpoint) | S3-compatible R2 endpoint for the Cloudflare account. |
 | <a name="output_backend_type"></a> [backend\_type](#output\_backend\_type) | Terraform backend type to use for Cloudflare R2. |
-| <a name="output_backup_bucket"></a> [backup\_bucket](#output\_backup\_bucket) | Created backup R2 bucket details returned by the underlying module, if enabled. |
-| <a name="output_backup_bucket_name"></a> [backup\_bucket\_name](#output\_backup\_bucket\_name) | Name of the created backup R2 bucket, if enabled. |
+| <a name="output_backup_bucket"></a> [backup\_bucket](#output\_backup\_bucket) | Backup target bucket details, if enabled. |
+| <a name="output_backup_bucket_name"></a> [backup\_bucket\_name](#output\_backup\_bucket\_name) | Name of the backup target bucket, if enabled. |
 | <a name="output_backup_dead_letter_queue_name"></a> [backup\_dead\_letter\_queue\_name](#output\_backup\_dead\_letter\_queue\_name) | Name of the backup dead letter queue, if enabled. |
 | <a name="output_backup_enabled"></a> [backup\_enabled](#output\_backup\_enabled) | Whether the backup stack is enabled. |
 | <a name="output_backup_policy"></a> [backup\_policy](#output\_backup\_policy) | Backup retention and lock settings. |
@@ -115,10 +120,15 @@ module "backend" {
   state_key     = var.state_key
   storage_class = "Standard"
 
-  backup_enabled                  = true
-  backup_storage_class            = "InfrequentAccess"
-  backup_prefix                   = "snapshots"
-  backup_source_suffix            = ".tfstate"
+  backup_enabled              = true
+  backup_uses_separate_bucket = true
+  backup_trigger              = "event"
+
+  backup_storage_class = "Standard"
+
+  backup_prefix        = "snapshots"
+  backup_source_suffix = ".tfstate"
+
   backup_retention_days           = 90
   enable_backup_lock              = true
   backup_min_lock_days            = 14
