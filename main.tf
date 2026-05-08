@@ -373,7 +373,7 @@ resource "cloudflare_queue" "backup_dead_letter" {
 }
 
 module "primary_bucket" {
-  source = "git::https://github.com/rafalmasiarek/terraform-cloudflare-r2-bucket.git?ref=v0.2.0"
+  source = "./modules/r2_bucket"
 
   account_id    = var.account_id
   name          = local.bucket_name
@@ -391,7 +391,7 @@ module "primary_bucket" {
 
 module "backup_bucket" {
   count  = local.backup_uses_separate_bucket ? 1 : 0
-  source = "git::https://github.com/rafalmasiarek/terraform-cloudflare-r2-bucket.git?ref=v0.2.0"
+  source = "./modules/r2_bucket"
 
   account_id    = var.account_id
   name          = local.backup_bucket_name
