@@ -15,8 +15,8 @@
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_backup_bucket"></a> [backup\_bucket](#module\_backup\_bucket) | git::https://github.com/Infrastrukturait/terraform-cloudflare-r2-bucket.git | v0.1.0 |
-| <a name="module_primary_bucket"></a> [primary\_bucket](#module\_primary\_bucket) | git::https://github.com/Infrastrukturait/terraform-cloudflare-r2-bucket.git | v0.1.0 |
+| <a name="module_backup_bucket"></a> [backup\_bucket](#module\_backup\_bucket) | ./modules/r2_bucket | n/a |
+| <a name="module_primary_bucket"></a> [primary\_bucket](#module\_primary\_bucket) | ./modules/r2_bucket | n/a |
 
 ### Resources
 

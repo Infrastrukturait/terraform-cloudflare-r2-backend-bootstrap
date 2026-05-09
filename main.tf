@@ -373,7 +373,7 @@ resource "cloudflare_queue" "backup_dead_letter" {
 }
 
 module "primary_bucket" {
-  source = "git::https://github.com/Infrastrukturait/terraform-cloudflare-r2-bucket.git?ref=v0.1.0"
+  source = "./modules/r2_bucket"
 
   account_id    = var.account_id
   name          = local.bucket_name
@@ -391,7 +391,7 @@ module "primary_bucket" {
 
 module "backup_bucket" {
   count  = local.backup_uses_separate_bucket ? 1 : 0
-  source = "git::https://github.com/Infrastrukturait/terraform-cloudflare-r2-bucket.git?ref=v0.1.0"
+  source = "./modules/r2_bucket"
 
   account_id    = var.account_id
   name          = local.backup_bucket_name
@@ -441,8 +441,13 @@ resource "cloudflare_worker" "backup_consumer" {
   account_id = var.account_id
   name       = local.backup_worker_name
 
-  observability = {
-    enabled = true
+
+  lifecycle {
+    ignore_changes = [
+      observability,
+      references,
+      updated_on,
+    ]
   }
 }
 
@@ -516,6 +521,15 @@ resource "cloudflare_queue_consumer" "backup_worker" {
     max_retries      = var.backup_queue_max_retries
     max_wait_time_ms = var.backup_queue_max_wait_time_ms
     retry_delay      = var.backup_queue_retry_delay_seconds
+  }
+
+  lifecycle {
+    ignore_changes = [
+      consumer_id,
+      created_on,
+      queue_name,
+      script_name,
+    ]
   }
 
   depends_on = [
